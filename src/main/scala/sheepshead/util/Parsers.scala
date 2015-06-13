@@ -19,6 +19,17 @@ object CardParser {
         PreviousPlays(Trick(cards.last.ssuit, unsafeListToNel(Seat.seatList(nextSeat) zip cards))) // fixme
       }
 
+  def parseTrickMandatory(nextSeat: Seat)(str: String): Option[PreviousPlays] =
+    if (str == "") None
+    else
+      str.split(' ') // first card played is on the left
+        .toList.reverse // first card played is at the tail
+        .map(CardParser.simpleCard)
+        .sequence[Option,Card]
+        .map { cards ⇒
+        PreviousPlays(Trick(cards.last.ssuit, unsafeListToNel(Seat.seatList(nextSeat) zip cards))) // fixme
+      }
+
   def parseHand(str: String): Option[Hand] =
     if (str == "") None
     else

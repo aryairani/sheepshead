@@ -50,4 +50,12 @@ package object sheepshead {
 
   def canFollow[F[_]:Foldable](led: SSuit)(card: Card, hand: F[Card]): Boolean =
     hand.any(led.members.contains) --> led.members.contains(card)
+
+  def trickScores(teams: Set[Set[Seat]], tricks: List[Trick]): Map[Set[Seat],Int] = {
+    def oneSeatOneTrick(seat: Seat, trick: Trick) = trick.playMap.get(seat).map(_.points).orZero
+    def oneTeamOneTrick(team: Set[Seat], trick: Trick) = team.map(oneSeatOneTrick(_, trick)).suml
+    outlaws.std.set.setOutlawInstnace.fproduct(teams)(team ⇒ tricks.map(oneTeamOneTrick(team, _)).suml).toMap
+  }
+
+
 }

@@ -9,11 +9,9 @@ case class PlayCard(c: Card)                   extends Action[Unit]
 case object LookHand                           extends Action[Hand]
 case object ObserveTrick                       extends Action[CurrentTrick]
 case class FinishTrick(partial: PreviousPlays) extends Action[PreviousPlays]
-case object Scoring                            extends Action[Map[Seat,Int]]
 
 object ActionF {
   def playCard(c: Card)                   = liftFC[Action, Unit]          (PlayCard(c))
   def observeFirstHalf                    = liftFC[Action, CurrentTrick]  (ObserveTrick)
   def finishTrick(partial: PreviousPlays) = liftFC[Action, PreviousPlays] (FinishTrick(partial))
-  def scoring                             = liftFC[Action, Map[Seat,Int]] (Scoring)
 }

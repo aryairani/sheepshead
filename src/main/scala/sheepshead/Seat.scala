@@ -13,6 +13,8 @@ object Seat {
   case object S4 extends Seat
   case object S5 extends Seat
 
+  val allSeats = Set(S1, S2, S3, S4, S5)
+
   implicit val seatEqual = Equal.equalRef[Seat]
 
   private def seatStream: EphemeralStream[Seat] =

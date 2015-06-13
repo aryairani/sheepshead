@@ -40,6 +40,7 @@ case class Brain(mySeat: Seat
                  ,pastTricks: List[Trick]
                  ,picker: Picker
                  ,partnership: Map[Seat, Partnership]
+//                 ,seenBlind: Option[(Card, Card)]
                   ) { self ⇒
 
   def points(pastTricks: List[Trick])(seat: Seat): Int =
@@ -89,38 +90,46 @@ case class Brain(mySeat: Seat
 
   // todo: test this
   def updatedPartnerships(currentTrick: CurrentTrick): Brain =
+    currentTrick.fold(this, updatedPartnerships)
+
+
+  def updatedPartnerships(trick: Trick): Brain =
+
     picker.fold(this, (pickerSeat, pc) ⇒
       Brain.partnership.modify { priorPartnershipLookup ⇒
 
-        import Picker.PickerCard, Partnership._
+        import Partnership._
+        implicit val o = trick.cardOrder
 
-        currentTrick.fold(priorPartnershipLookup, trick ⇒ {
+        // if someone played the magic partnership card, who was it? then update the partnership settings
+        filterFF(trick.plays.toList)(_._2 === pc) // look for any play pairs matching the magic partnership card
+          .headOption // there should be zero or one
+          .map(_._1) // we'll care about the first element of the pair: the seat
+          // if there was no match, just stick with the old partnership lookup,
+          .fold(priorPartnershipLookup) { pcardPlayer ⇒ // else, knowing the seat of the partnership card player,
+          priorPartnershipLookup.map {
+            // go through all the players in the partnership lookup map
+            case (playerSeat, _) ⇒ // given the seat,
+              val thisPersonIsMy =
+                if (playerSeat === mySeat)
+                  Self
+                else if ((pickerSeat === mySeat) === (pcardPlayer === playerSeat))
+                  Partner
+                else
+                  Opponent
 
-          implicit val o = trick.cardOrder
-          // if someone played the magic partnership card, who was it? then update the partnership settings
-          filterFF(trick.plays.toList)(_._2 === pc) // look for any play pairs matching the magic partnership card
-            .headOption // there should be zero or one
-            .map(_._1) // we'll care about the first element of the pair: the seat
-            // if there was no match, just stick with the old partnership lookup,
-            .fold(priorPartnershipLookup) { pcardPlayer ⇒ // else, knowing the seat of the partnership card player,
-            priorPartnershipLookup.map {
-              // go through all the players in the partnership lookup map
-              case (playerSeat, _) ⇒ // given the seat,
-                val thisPersonIsMy =
-                  if (playerSeat === mySeat)
-                    Self
-                  else if ((pickerSeat === mySeat) === (pcardPlayer === playerSeat))
-                    Partner
-                  else
-                    Opponent
+              (playerSeat, thisPersonIsMy) // replace the map entry with one mapping
+            // the player to the updated partnership relationship
 
-                (playerSeat, thisPersonIsMy) // replace the map entry with one mapping
-              // the player to the updated partnership relationship
-
-            }
           }
-        })
+        }
       }(this)
     )
 
+//  def addBestFromBlind(blind: (Card, Card)): Brain = {
+//    val newHand = hand insert blind._1 insert blind._2
+//    new Brain(mySeat, newHand, pastTricks, picker, partnership) {
+//      override val
+//    }
+//  }
 }
