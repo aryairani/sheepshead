@@ -23,29 +23,28 @@ object Partnership {
 
 sealed trait Picker extends Product with Serializable {
   import Picker._
-  def fold[B](leaster: ⇒ B, picker: Seat ⇒ B) = this match {
-    case WeHaveAPicker(seat) ⇒ picker(seat)
+  def fold[B](leaster: ⇒ B, picker: (Seat,Card) ⇒ B) = this match {
+    case PickerCard(seat, card) ⇒ picker(seat, card)
     case Leaster ⇒ leaster
   }
 }
 object Picker {
-  case class WeHaveAPicker(seat: Seat) extends Picker
+  case class PickerCard(seat: Seat, partnerCard: Card) extends Picker
   case object Leaster extends Picker
 }
 
 
 @Lenses
 case class Brain(mySeat: Seat
-                ,hand: Hand
-                ,pastTricks: List[Trick]
-                ,picker: Picker
-                ,partnership: Map[Seat, Partnership]
-                ,pc: Option[PartnerCard]
-                 ) { self ⇒
+                 ,hand: Hand
+                 ,pastTricks: List[Trick]
+                 ,picker: Picker
+                 ,partnership: Map[Seat, Partnership]
+                  ) { self ⇒
 
-  def points(pastTricks: List[Trick])(seat: Seat): Int = 
+  def points(pastTricks: List[Trick])(seat: Seat): Int =
     pastTricks.filter(_.leadingSeat === seat).foldMap(_.points)
-  
+
   /**
    * Which cards from your hand would lead the current trick?
    */
@@ -90,37 +89,38 @@ case class Brain(mySeat: Seat
 
   // todo: test this
   def updatedPartnerships(currentTrick: CurrentTrick): Brain =
-    pc.fold(this) { pc ⇒
+    picker.fold(this, (pickerSeat, pc) ⇒
       Brain.partnership.modify { priorPartnershipLookup ⇒
-        
-        import Picker.WeHaveAPicker, Partnership._
 
-        (picker, currentTrick) match {
-          case (WeHaveAPicker(pickerSeat), PreviousPlays(trick)) ⇒ // assuming it's not leaster
-            implicit val o = trick.cardOrder
-            // if someone played the magic partnership card, who was it? then update the partnership settings
-            filterFF(trick.plays.toList)(_._2 === pc.c) // look for any play pairs matching the magic partnership card
-              .headOption // there should be zero or one
-              .map(_._1) // we'll care about the first element of the pair: the seat
-              // if there was no match, just stick with the old partnership lookup,
-              .fold(priorPartnershipLookup) { pcardPlayer ⇒ // else, knowing the seat of the partnership card player,
-              priorPartnershipLookup.map { // go through all the players in the partnership lookup map
-                case (playerSeat, _) ⇒ // given the seat,
-                  val thisPersonIsMy =
-                    if (playerSeat === mySeat)
-                      Self
-                    else if ((pickerSeat === mySeat) === (pcardPlayer === playerSeat))
-                      Partner
-                    else
-                      Opponent
-                
-                  (playerSeat, thisPersonIsMy) // replace the map entry with one mapping
-                                               // the player to the updated partnership relationship
-                    
-              }
+        import Picker.PickerCard, Partnership._
+
+        currentTrick.fold(priorPartnershipLookup, trick ⇒ {
+
+          implicit val o = trick.cardOrder
+          // if someone played the magic partnership card, who was it? then update the partnership settings
+          filterFF(trick.plays.toList)(_._2 === pc) // look for any play pairs matching the magic partnership card
+            .headOption // there should be zero or one
+            .map(_._1) // we'll care about the first element of the pair: the seat
+            // if there was no match, just stick with the old partnership lookup,
+            .fold(priorPartnershipLookup) { pcardPlayer ⇒ // else, knowing the seat of the partnership card player,
+            priorPartnershipLookup.map {
+              // go through all the players in the partnership lookup map
+              case (playerSeat, _) ⇒ // given the seat,
+                val thisPersonIsMy =
+                  if (playerSeat === mySeat)
+                    Self
+                  else if ((pickerSeat === mySeat) === (pcardPlayer === playerSeat))
+                    Partner
+                  else
+                    Opponent
+
+                (playerSeat, thisPersonIsMy) // replace the map entry with one mapping
+              // the player to the updated partnership relationship
+
             }
-          case _ ⇒ priorPartnershipLookup
-        }
+          }
+        })
       }(this)
-    }
+    )
+
 }

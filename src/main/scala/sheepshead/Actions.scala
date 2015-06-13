@@ -29,26 +29,6 @@ import scalaz._, Scalaz._, Free.FreeC, effect.IO
 object Test extends App {
   import ActionF._
 
-  def updatedPartnerships(picker: Picker, pc: PartnerCard, me: Seat)
-                         (currentTrick: CurrentTrick)
-                         (partnership: Map[Seat, Partnership]): Map[Seat, Partnership] = {
-
-    import Picker.WeHaveAPicker, Partnership.{Partner, Opponent}
-
-    (picker, currentTrick) match {
-      case (WeHaveAPicker(pickerSeat), PreviousPlays(trick)) ⇒
-        implicit val o = trick.cardOrder
-        filterFF(trick.plays.toList)(_._2 === pc.c)(listInstance: Foldable[List], net.arya.util.Pointed.applicativePointed[List], listInstance: PlusEmpty[List]).map(_._1).headOption.fold(partnership) { pcardPlayer ⇒
-          partnership.map {
-            case (s, _) ⇒
-              (s,  if ((pickerSeat === me) === (pcardPlayer === s)) Partner else Opponent)
-          }
-        }
-      case _ ⇒ partnership
-    }
-
-  }
-
   def program(brain: Brain): FreeC[Action,Unit] = for {
 
     currentTrick  ← observeTrick
