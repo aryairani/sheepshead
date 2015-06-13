@@ -3,6 +3,8 @@ package sheepshead
 import scalaz._
 import scalaz.syntax.equal._
 
+import net.arya.util.unsafe.unsafeListToNel
+
 sealed trait Seat extends Product with Serializable
 object Seat {
   case object S1 extends Seat

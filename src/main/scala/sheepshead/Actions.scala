@@ -1,19 +1,10 @@
 package sheepshead
 
-import net.arya.util.NonEmptySet
+import net.arya.util.{EmptySet, NonEmptySet}
+import net.arya.util.filter._
 import sheepshead.brain._
-import sheepshead.util.CardParser
 
-import scalaz.Free.FreeC
-import scalaz.effect.IO
-import scalaz.syntax.std.boolean._
-import scalaz.syntax.std.option._
-import scalaz.std.option._
-import scalaz.{PlusEmpty, Foldable, ~>}
-import scalaz.syntax.foldable._
-import scalaz.syntax.equal._
-import scalaz.std.anyVal._
-import scalaz.std.list._
+import scalaz._, Scalaz._, Free.FreeC, effect.IO
 
 //object ConsoleAction extends (Action ~> IO) {
 //
@@ -35,13 +26,6 @@ import scalaz.std.list._
 ////  }
 //}
 
-object EmptySet0 {
-  def unapply[A](s: Set[A]): Option[Unit] = s.isEmpty.option(())
-}
-object NonEmptySet0 {
-  def unapply[A](s: Set[A]): Option[(A,Set[A])] = s.isEmpty.fold(none, (s.head, s.tail).some)
-}
-
 object Test extends App {
   import ActionF._
 
@@ -49,10 +33,10 @@ object Test extends App {
                          (currentTrick: CurrentTrick)
                          (partnership: Map[Seat, Partnership]): Map[Seat, Partnership] = {
 
-    import Picker.{Yes ⇒ Picker}, Partnership.{Partner, Opponent}
+    import Picker.WeHaveAPicker, Partnership.{Partner, Opponent}
 
     (picker, currentTrick) match {
-      case (Picker(pickerSeat), PreviousPlays(trick)) ⇒
+      case (WeHaveAPicker(pickerSeat), PreviousPlays(trick)) ⇒
         implicit val o = trick.cardOrder
         filterFF(trick.plays.toList)(_._2 === pc.c)(listInstance: Foldable[List], net.arya.util.Pointed.applicativePointed[List], listInstance: PlusEmpty[List]).map(_._1).headOption.fold(partnership) { pcardPlayer ⇒
           partnership.map {
@@ -71,13 +55,13 @@ object Test extends App {
     brainv2       = brain.updatedPartnerships(currentTrick)
     cardChoice    = brainv2.unsafeRandomLegal(currentTrick) // todo
     _             ← playCard(cardChoice)
-    completeTrick ← finishTrick(currentTrick.add(brain.seat, cardChoice))
+    completeTrick ← finishTrick(currentTrick.add(brain.mySeat, cardChoice))
 
     // <magic>
 
     brainv3             ← (brain.hand delete cardChoice) match {
-      case EmptySet0(_) ⇒ scoring // end of hand
-      case NonEmptySet0(x, ys) ⇒
+      case EmptySet(_) ⇒ scoring // end of hand
+      case NonEmptySet(x, ys) ⇒
         val remainingHand = NonEmptySet(x, ys)
         program(
           Brain.hand.set(remainingHand)(

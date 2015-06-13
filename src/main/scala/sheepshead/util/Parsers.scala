@@ -5,6 +5,8 @@ import sheepshead.brain.{PreviousPlays, YourLead, CurrentTrick}
 
 import scalaz._, Scalaz._
 
+import net.arya.util.unsafe.{unsafeListToNel, unsafeListToNes}
+
 object CardParser {
   def parseTrick(nextSeat: Seat)(str: String): Option[CurrentTrick] =
     if (str == "") Some(YourLead)

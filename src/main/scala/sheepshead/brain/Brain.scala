@@ -3,12 +3,13 @@ package brain
 
 import monocle.macros.Lenses
 import net.arya.util.NonEmptySet
+import net.arya.util.filter.filterFF
+import net.arya.util.unsafe.atRandom1
 
 import scalaz._, Scalaz._
 
 /**
  * @param c the card that represents the partner
- * @param p
  */
 final case class PartnerCard(c: Card)
 
@@ -23,18 +24,18 @@ object Partnership {
 sealed trait Picker extends Product with Serializable {
   import Picker._
   def fold[B](leaster: ⇒ B, picker: Seat ⇒ B) = this match {
-    case Yes(seat) ⇒ picker(seat)
+    case WeHaveAPicker(seat) ⇒ picker(seat)
     case Leaster ⇒ leaster
   }
 }
 object Picker {
-  case class Yes(seat: Seat) extends Picker
+  case class WeHaveAPicker(seat: Seat) extends Picker
   case object Leaster extends Picker
 }
 
 
 @Lenses
-case class Brain(seat: Seat
+case class Brain(mySeat: Seat
                 ,hand: Hand
                 ,pastTricks: List[Trick]
                 ,picker: Picker
@@ -67,7 +68,7 @@ case class Brain(seat: Seat
    * which hidden cards could beat it?
    */
   def whichHiddenCouldBeat(currentTrick: CurrentTrick)(myCard: Card): Set[Card] =
-    sheepshead.wouldLead(hiddenCards(currentTrick))(currentTrick.add(seat, myCard).t)
+    sheepshead.wouldLead(hiddenCards(currentTrick))(currentTrick.add(mySeat, myCard).t)
 
   def hiddenCards(currentTrick: CurrentTrick): Set[Card] = (
     fulldeck
@@ -90,27 +91,35 @@ case class Brain(seat: Seat
   // todo: test this
   def updatedPartnerships(currentTrick: CurrentTrick): Brain =
     pc.fold(this) { pc ⇒
-      Brain.partnership.modify { partnership ⇒
-        import Picker.Yes, Partnership._
+      Brain.partnership.modify { priorPartnershipLookup ⇒
+        
+        import Picker.WeHaveAPicker, Partnership._
 
         (picker, currentTrick) match {
-          case (Yes(pickerSeat), PreviousPlays(trick)) ⇒
+          case (WeHaveAPicker(pickerSeat), PreviousPlays(trick)) ⇒ // assuming it's not leaster
             implicit val o = trick.cardOrder
             // if someone played the magic partnership card, who was it? then update the partnership settings
-            filterFF(trick.plays.toList)(_._2 === pc.c).map(_._1).headOption.fold(partnership) { pcardPlayer ⇒
-              partnership.map {
-                case (s, _) ⇒
-                  (s,
-                    if (seat === s)
+            filterFF(trick.plays.toList)(_._2 === pc.c) // look for any play pairs matching the magic partnership card
+              .headOption // there should be zero or one
+              .map(_._1) // we'll care about the first element of the pair: the seat
+              // if there was no match, just stick with the old partnership lookup,
+              .fold(priorPartnershipLookup) { pcardPlayer ⇒ // else, knowing the seat of the partnership card player,
+              priorPartnershipLookup.map { // go through all the players in the partnership lookup map
+                case (playerSeat, _) ⇒ // given the seat,
+                  val thisPersonIsMy =
+                    if (playerSeat === mySeat)
                       Self
-                    else if ((pickerSeat === seat) === (pcardPlayer === s))
+                    else if ((pickerSeat === mySeat) === (pcardPlayer === playerSeat))
                       Partner
                     else
                       Opponent
-                    )
+                
+                  (playerSeat, thisPersonIsMy) // replace the map entry with one mapping
+                                               // the player to the updated partnership relationship
+                    
               }
             }
-          case _ ⇒ partnership
+          case _ ⇒ priorPartnershipLookup
         }
       }(this)
     }
