@@ -9,6 +9,8 @@ sealed trait CurrentTrick {
     case PreviousPlays(t) ⇒ previousPlays(t)
   }
 
+  def size: Int = fold(0, _.size)
+
   def toOption: Option[Trick] = fold(None, Some.apply)
 
   def add(s: Seat, c: Card): PreviousPlays =

@@ -1,7 +1,7 @@
 resolvers += Resolver.bintrayRepo("stew","snapshots")
 libraryDependencies ++= Seq(
   "org.typelevel" %% "scalaz-outlaws" % "0.2",
-  "net.arya" %% "util" % "0.0.3",
+  "net.arya" %% "util" % "0.0.5",
   scalaz("effect")
 )
 

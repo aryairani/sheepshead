@@ -7,6 +7,7 @@ case class Trick(ssuit: SSuit, plays: NonEmptyList[(Seat,Card)]) {
   def playCards: NonEmptyList[Card] = plays.map(_._2)
   lazy val playMap: Map[Seat,Card] = plays.list.toMap
 
+  def size = plays.size
   def points: Int = playCards.foldMap1(_.points)
 
   def leading: (Seat, Card) = plays.maximumBy1(_._1)
